@@ -1,4 +1,5 @@
 require('dotenv').config();
+const express = require('express');
 const TelegramBot = require('node-telegram-bot-api');
 const config = require('./config');
 
@@ -12,12 +13,28 @@ const signaleCommand = require('./commands/signale');
 const { deleteLastMessages } = require('./utils/telegramHelpers');
 const logger = require('./utils/logger');
 
-// Création du bot Telegram
-const bot = new TelegramBot(config.BOT_TOKEN, { polling: true });
+// Setup Express pour webhook
+const app = express();
+app.use(express.json());
 
-logger.info('🤖 Bot démarré...');
+const bot = new TelegramBot(config.BOT_TOKEN, { webHook: true });
 
-// Gestion des commandes
+// Définir l'URL du webhook
+const URL = config.APP_URL;
+const PORT = process.env.PORT || 3000;
+const webhookPath = `/bot${config.BOT_TOKEN}`;
+
+bot.setWebHook(`${URL}${webhookPath}`);
+
+// Route pour recevoir les mises à jour Telegram
+app.post(webhookPath, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+logger.info('🤖 Bot démarré en mode webhook...');
+
+// Commandes
 bot.onText(/\/start/, async (msg) => {
   await deleteLastMessages(bot, msg.chat.id);
   startCommand.execute(bot, msg.chat.id);
@@ -43,7 +60,7 @@ bot.onText(/\/signale/, async (msg) => {
   signaleCommand.execute(bot, msg.chat.id);
 });
 
-// Si besoin, gérer les boutons custom ici
+// Callback boutons
 bot.on('callback_query', (query) => {
   const chatId = query.message.chat.id;
   const data = query.data;
@@ -65,6 +82,10 @@ bot.on('callback_query', (query) => {
       bot.sendMessage(chatId, "❓ Commande inconnue.");
   }
 
-  // Supprime le message du bouton après action
   bot.deleteMessage(chatId, query.message.message_id);
+});
+
+// Démarrer Express
+app.listen(PORT, () => {
+  console.log(`🚀 Serveur Express lancé sur le port ${PORT}`);
 });
