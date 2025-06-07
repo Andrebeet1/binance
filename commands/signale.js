@@ -1,49 +1,50 @@
-const { createSignalMessage, createSignalKeyboard } = require('../utils/telegramHelpers');
+const fs = require('fs');
+const path = require('path');
+const { createSignalKeyboard } = require('../utils/telegramHelpers');
 
 module.exports = {
   name: 'signale',
   description: 'Affiche un signal de trading (BUY / SELL / NEUTRE)',
 
-  async execute(ctx) {
+  async execute(bot, chatId) {
     try {
-      // Exemple simple : logique de signal à améliorer selon tes indicateurs
-      // Ici on simule un signal aléatoire
       const signals = ['BUY', 'SELL', 'NEUTRE'];
       const signal = signals[Math.floor(Math.random() * signals.length)];
 
-      // Message à envoyer selon le signal
       let signalText = '';
-      let animation = null;
+      let animationPath = '';
 
       switch (signal) {
         case 'BUY':
           signalText = '🟢 Signal d’achat recommandé (BUY) !';
-          animation = 'animations/signal_up.gif';  // Chemin vers un gif animé "up"
+          animationPath = path.join(__dirname, '../animations/signal_up.gif');
           break;
         case 'SELL':
           signalText = '🔴 Signal de vente recommandé (SELL) !';
-          animation = 'animations/signal_down.gif'; // Chemin vers un gif animé "down"
+          animationPath = path.join(__dirname, '../animations/signal_down.gif');
           break;
         default:
           signalText = '⚪️ Pas de signal clair (NEUTRE) pour le moment.';
-          animation = null;
+          animationPath = null;
           break;
       }
 
       // Envoi de l’animation si disponible
-      if (animation) {
-        await ctx.replyWithAnimation({ source: animation }, { caption: signalText });
+      if (animationPath && fs.existsSync(animationPath)) {
+        await bot.sendAnimation(chatId, fs.createReadStream(animationPath), {
+          caption: signalText
+        });
       } else {
-        await ctx.reply(signalText);
+        await bot.sendMessage(chatId, signalText);
       }
 
-      // Boutons en dessous : Afficher RSI, Acheter, Vendre, Aide
+      // Envoi du clavier
       const keyboard = createSignalKeyboard();
-      await ctx.reply('Que souhaitez-vous faire ensuite ?', keyboard);
+      await bot.sendMessage(chatId, 'Que souhaitez-vous faire ensuite ?', keyboard);
 
     } catch (error) {
-      console.error('Erreur commande signale:', error);
-      await ctx.reply('❌ Une erreur est survenue lors de la génération du signal.');
+      console.error('Erreur commande signale:', error.message);
+      await bot.sendMessage(chatId, '❌ Une erreur est survenue lors de la génération du signal.');
     }
   }
 };
