@@ -8,50 +8,66 @@ const SOCKET_BASE = 'wss://stream.binance.com:9443/ws';
 let priceData = [];
 
 /**
- * Récupère les dernières bougies (candlesticks) de Binance en REST
+ * Récupère les dernières bougies (candlesticks) de Binance via REST API
+ * @param {string} symbol - Exemple : 'BTCUSDT'
+ * @param {string} interval - Exemple : '1m', '15m', '1h'
+ * @param {number} limit - Nombre de bougies à récupérer (max 1000)
+ * @returns {Promise<number[]>} - Liste des prix de clôture
  */
 async function getCandleData(symbol = 'BTCUSDT', interval = '1m', limit = 100) {
   try {
-    const res = await axios.get(`${BASE_URL}/api/v3/klines`, {
-      params: {
-        symbol,
-        interval,
-        limit,
-      },
+    const response = await axios.get(`${BASE_URL}/api/v3/klines`, {
+      params: { symbol, interval, limit },
     });
 
-    // On extrait les prix de clôture
-    const closes = res.data.map(candle => parseFloat(candle[4]));
+    // Extraction des prix de clôture (index 4 dans les bougies)
+    const closes = response.data.map(candle => parseFloat(candle[4]));
     return closes;
-  } catch (err) {
-    console.error('Erreur REST Binance:', err.message);
+  } catch (error) {
+    console.error('❌ Erreur lors de la récupération des bougies :', error.message);
     return [];
   }
 }
 
 /**
- * Démarre le WebSocket Binance pour suivre le prix en temps réel
+ * Démarre un WebSocket Binance pour recevoir le prix en temps réel
+ * @param {string} symbol - Exemple : 'btcusdt'
+ * @param {(price: number, rsi: number|null) => void} onPriceUpdate - Callback
  */
 function startPriceStream(symbol = 'btcusdt', onPriceUpdate) {
   const ws = new WebSocket(`${SOCKET_BASE}/${symbol}@kline_1m`);
 
-  ws.on('message', msg => {
-    const data = JSON.parse(msg);
-    const close = parseFloat(data.k.c); // prix de clôture
+  ws.on('open', () => {
+    console.log(`✅ WebSocket ouvert pour ${symbol}`);
+  });
 
-    priceData.push(close);
-    if (priceData.length > 100) priceData.shift(); // Limite à 100
+  ws.on('message', message => {
+    try {
+      const data = JSON.parse(message);
 
-    const rsi = calculateRSI(priceData);
-    onPriceUpdate(close, rsi);
+      if (data && data.k && data.k.x) { // k.x = fin de bougie (close)
+        const closePrice = parseFloat(data.k.c);
+        priceData.push(closePrice);
+
+        // Garder seulement les 100 dernières valeurs
+        if (priceData.length > 100) {
+          priceData.shift();
+        }
+
+        const rsi = priceData.length >= 15 ? calculateRSI(priceData) : null;
+        onPriceUpdate(closePrice, rsi);
+      }
+    } catch (error) {
+      console.error('❌ Erreur parsing WebSocket message :', error.message);
+    }
   });
 
   ws.on('error', err => {
-    console.error('WebSocket Binance Error:', err.message);
+    console.error('❌ WebSocket Binance erreur :', err.message);
   });
 
   ws.on('close', () => {
-    console.warn('WebSocket fermé. Reconnexion...');
+    console.warn('⚠️ WebSocket fermé. Tentative de reconnexion dans 5s...');
     setTimeout(() => startPriceStream(symbol, onPriceUpdate), 5000);
   });
 }
