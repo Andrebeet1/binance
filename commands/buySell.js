@@ -8,16 +8,23 @@ module.exports = {
   async execute(bot, chatId) {
     try {
       const symbol = 'BTCUSDT';
-      const rsi = await getRSI(symbol, 14);
-      const emaShort = await getEMA(symbol, 9);
-      const emaLong = await getEMA(symbol, 21);
+      const interval = '15m'; // Peut être modifié selon ton besoin
+
+      // Appels aux indicateurs avec tous les paramètres nécessaires
+      const rsi = await getRSI(symbol, interval, 14);
+      const emaShort = await getEMA(symbol, interval, 9);
+      const emaLong = await getEMA(symbol, interval, 21);
+
+      if (rsi == null || emaShort == null || emaLong == null) {
+        throw new Error("Un des indicateurs est retourné nul ou invalide.");
+      }
 
       let signal = '';
       let emoji = '';
-      let message = `📊 *Signal pour ${symbol}*\n`;
-      message += `🔹 RSI (14) : *${rsi.toFixed(2)}*\n`;
-      message += `🔸 EMA 9 : *${emaShort.toFixed(2)}*\n`;
-      message += `🔸 EMA 21 : *${emaLong.toFixed(2)}*\n\n`;
+      let message = `📊 *Signal pour ${symbol} (${interval})*\n`;
+      message += `🔹 RSI (14) : *${rsi}*\n`;
+      message += `🔸 EMA 9 : *${emaShort}*\n`;
+      message += `🔸 EMA 21 : *${emaLong}*\n\n`;
 
       // Logique du signal
       if (rsi < 30 && emaShort > emaLong) {
@@ -34,12 +41,12 @@ module.exports = {
         message += `${emoji} *Pas de signal clair pour le moment.*`;
       }
 
-      // Envoyer animation (si disponible) et message
+      // Envoi de l’animation et du message
       await sendBuySellAnimation(bot, chatId, signal);
       await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
 
     } catch (error) {
-      console.error('Erreur Buy/Sell :', error);
+      console.error('Erreur Buy/Sell :', error.message);
       await bot.sendMessage(chatId, '❌ Erreur lors de la génération du signal BUY/SELL.');
     }
   }
