@@ -37,38 +37,50 @@ function getMainKeyboard() {
   };
 }
 
+// Historique temporaire des messages à supprimer
+const messageHistory = new Map();
+
 /**
- * Supprime automatiquement un message après un délai donné
- * @param {Object} ctx - Contexte Telegraf
- * @param {number} messageId - ID du message à supprimer
- * @param {number} delay - Délai en millisecondes (par défaut 10s)
+ * Enregistre un message envoyé pour suppression future
+ * @param {number} chatId 
+ * @param {number} messageId 
  */
-function autoDeleteMessage(ctx, messageId, delay = 10000) {
-  setTimeout(() => {
-    ctx.telegram.deleteMessage(ctx.chat.id, messageId).catch(err => {
-      console.warn('⚠️ Erreur suppression message :', err.message);
-    });
-  }, delay);
+function trackMessage(chatId, messageId) {
+  if (!messageHistory.has(chatId)) {
+    messageHistory.set(chatId, []);
+  }
+  messageHistory.get(chatId).push(messageId);
+
+  // Garder seulement les 10 derniers
+  if (messageHistory.get(chatId).length > 10) {
+    messageHistory.set(chatId, messageHistory.get(chatId).slice(-10));
+  }
 }
 
 /**
- * Envoie un message temporaire qui s’autodétruit après un délai
- * @param {Object} ctx - Contexte Telegraf
- * @param {string} text - Message à envoyer
- * @param {number} delay - Durée avant suppression (ms)
+ * Supprime les derniers messages envoyés au chat
+ * @param {TelegramBot} bot 
+ * @param {number} chatId 
  */
-async function replyAndDelete(ctx, text, delay = 7000) {
-  try {
-    const sent = await ctx.reply(text);
-    autoDeleteMessage(ctx, sent.message_id, delay);
-  } catch (err) {
-    console.error('❌ Erreur replyAndDelete :', err.message);
+async function deleteLastMessages(bot, chatId) {
+  if (!messageHistory.has(chatId)) return;
+
+  const messages = messageHistory.get(chatId);
+  for (const messageId of messages) {
+    try {
+      await bot.deleteMessage(chatId, messageId);
+    } catch (err) {
+      if (!err.message.includes('message to delete not found')) {
+        console.warn(`⚠️ Erreur suppression message : ${err.message}`);
+      }
+    }
   }
+  messageHistory.set(chatId, []);
 }
 
 module.exports = {
   createSignalKeyboard,
   getMainKeyboard,
-  autoDeleteMessage,
-  replyAndDelete
+  trackMessage,
+  deleteLastMessages,
 };
