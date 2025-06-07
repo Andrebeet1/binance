@@ -1,0 +1,33 @@
+# Node modules (bibliothèque npm)
+node_modules/
+
+# Variables d'environnement sensibles
+.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Dossier temporaire / cache
+tmp/
+temp/
+
+# Données utilisateur / sessions temporaires
+data/sessions.json
+
+# Fichiers générés
+.DS_Store
+
+# Coverage reports (tests)
+coverage/
+
+# IDE / éditeur
+.vscode/
+.idea/
+
+# Système OS
+Thumbs.db
+desktop.ini
