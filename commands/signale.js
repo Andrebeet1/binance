@@ -13,13 +13,13 @@ module.exports = {
 
       switch (signal) {
         case 'BUY':
-          signalText = '🟢 *Signal d’achat recommandé (BUY)* 📈';
+          signalText = '🟢🟢🟢*Signal d’achat recommandé (BUY)* 📈';
           break;
         case 'SELL':
-          signalText = '🔴 *Signal de vente recommandé (SELL)* 📉';
+          signalText = '🔴🔴🔴 *Signal de vente recommandé (SELL)* 📉';
           break;
         default:
-          signalText = '⚪️ *Pas de signal clair (NEUTRE) pour le moment.*';
+          signalText = '⚪️⚪️⚪️ *Pas de signal clair (NEUTRE) pour le moment.*';
           break;
       }
 
