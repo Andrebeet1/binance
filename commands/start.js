@@ -1,4 +1,4 @@
-const { deleteLastMessages } = require('../utils/telegramHelpers');
+const { deleteLastMessages, trackMessage } = require('../utils/telegramHelpers');
 
 module.exports = {
   name: 'start',
@@ -6,12 +6,9 @@ module.exports = {
 
   async execute(bot, chatId) {
     try {
-      // Supprimer les anciens messages
-      await deleteLastMessages(bot, chatId);
+      await deleteLastMessages(bot, chatId); // Supprime anciens
 
-      const welcomeMessage = `👋 Bonjour !\n\n` +
-        `Bienvenue sur Trading Bot 📈\n` +
-        `Utilise les boutons ci-dessous pour obtenir les signaux et infos trading.`;
+      const welcomeMessage = `👋 Bonjour !\n\nBienvenue sur Trading Bot 📈\nUtilise les boutons ci-dessous pour obtenir les signaux et infos trading.`;
 
       const keyboard = {
         reply_markup: {
@@ -24,7 +21,8 @@ module.exports = {
         }
       };
 
-      await bot.sendMessage(chatId, welcomeMessage, keyboard);
+      const sent = await bot.sendMessage(chatId, welcomeMessage, keyboard);
+      trackMessage(chatId, sent.message_id); // Suivre pour suppression future
     } catch (error) {
       console.error('Erreur dans /start :', error.message);
       await bot.sendMessage(chatId, '❌ Une erreur est survenue.');
