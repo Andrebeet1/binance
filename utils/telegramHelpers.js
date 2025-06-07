@@ -1,6 +1,9 @@
+// utils/telegramHelpers.js
 const fs = require('fs');
 
-// Création d’un clavier inline pour la commande /signale
+/**
+ * Clavier inline pour les signaux (RSI, Acheter, Vendre, Aide)
+ */
 function createSignalKeyboard() {
   return {
     reply_markup: {
@@ -18,7 +21,9 @@ function createSignalKeyboard() {
   };
 }
 
-// Création d’un clavier classique au démarrage (/start)
+/**
+ * Clavier classique (keyboard) pour le menu principal
+ */
 function getMainKeyboard() {
   return {
     reply_markup: {
@@ -32,19 +37,33 @@ function getMainKeyboard() {
   };
 }
 
-// Fonction pour supprimer un message après X secondes
-async function autoDeleteMessage(ctx, messageId, delay = 10000) {
+/**
+ * Supprime automatiquement un message après un délai donné
+ * @param {Object} ctx - Contexte Telegraf
+ * @param {number} messageId - ID du message à supprimer
+ * @param {number} delay - Délai en millisecondes (par défaut 10s)
+ */
+function autoDeleteMessage(ctx, messageId, delay = 10000) {
   setTimeout(() => {
-    ctx.telegram.deleteMessage(ctx.chat.id, messageId).catch((err) => {
-      console.warn('Erreur lors de la suppression du message :', err.message);
+    ctx.telegram.deleteMessage(ctx.chat.id, messageId).catch(err => {
+      console.warn('⚠️ Erreur suppression message :', err.message);
     });
   }, delay);
 }
 
-// Fonction d’envoi avec suppression automatique (message temporaire)
+/**
+ * Envoie un message temporaire qui s’autodétruit après un délai
+ * @param {Object} ctx - Contexte Telegraf
+ * @param {string} text - Message à envoyer
+ * @param {number} delay - Durée avant suppression (ms)
+ */
 async function replyAndDelete(ctx, text, delay = 7000) {
-  const sent = await ctx.reply(text);
-  autoDeleteMessage(ctx, sent.message_id, delay);
+  try {
+    const sent = await ctx.reply(text);
+    autoDeleteMessage(ctx, sent.message_id, delay);
+  } catch (err) {
+    console.error('❌ Erreur replyAndDelete :', err.message);
+  }
 }
 
 module.exports = {
