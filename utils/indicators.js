@@ -1,3 +1,5 @@
+const axios = require('axios');
+
 /**
  * Calcul de la moyenne mobile exponentielle (EMA)
  * @param {Array<number>} prices - Liste des prix (fermeture)
@@ -114,9 +116,41 @@ function getBuySellSignal(prices) {
   return 'HOLD';
 }
 
+/**
+ * Récupère le RSI actuel à partir de l'API Binance
+ * @param {string} symbol - Exemple : 'BTCUSDT'
+ * @param {number} period - Période RSI
+ * @param {string} interval - Intervalle des bougies (ex: '15m', '1h', etc.)
+ * @returns {Promise<number>} - RSI actuel
+ */
+async function getRSI(symbol, period = 14, interval = '15m') {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${period + 100}`;
+  const response = await axios.get(url);
+  const closes = response.data.map(candle => parseFloat(candle[4]));
+  const rsiArray = calculateRSI(closes, period);
+  return rsiArray[rsiArray.length - 1];
+}
+
+/**
+ * Récupère l'EMA actuel à partir de l'API Binance
+ * @param {string} symbol - Exemple : 'BTCUSDT'
+ * @param {number} period - Période EMA
+ * @param {string} interval - Intervalle des bougies
+ * @returns {Promise<number>} - EMA actuel
+ */
+async function getEMA(symbol, period = 9, interval = '15m') {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${period + 100}`;
+  const response = await axios.get(url);
+  const closes = response.data.map(candle => parseFloat(candle[4]));
+  const emaArray = calculateEMA(closes, period);
+  return emaArray[emaArray.length - 1];
+}
+
 module.exports = {
   calculateEMA,
   calculateRSI,
   calculateMACD,
   getBuySellSignal,
+  getRSI,
+  getEMA,
 };
