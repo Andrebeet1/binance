@@ -1,18 +1,19 @@
 const axios = require('axios');
 
-/**
- * Calcul de la moyenne mobile exponentielle (EMA)
- * @param {Array<number>} prices - Liste des prix (fermeture)
- * @param {number} period - Période de l'EMA
- * @returns {Array<number>} - Liste des valeurs EMA
- */
+// Récupération des prix de clôture depuis Binance
+async function getClosingPrices(symbol = 'BTCUSDT', interval = '1h', limit = 100) {
+  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+
+  const response = await axios.get(url);
+  return response.data.map(candle => parseFloat(candle[4])); // Prix de clôture (4e élément)
+}
+
+// EMA
 function calculateEMA(prices, period) {
   if (prices.length < period) return [];
-
   const k = 2 / (period + 1);
   const emaArray = new Array(prices.length).fill(undefined);
-  let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period; // SMA initiale
-
+  let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
   emaArray[period - 1] = ema;
 
   for (let i = period; i < prices.length; i++) {
@@ -23,15 +24,9 @@ function calculateEMA(prices, period) {
   return emaArray;
 }
 
-/**
- * Calcul du RSI (Relative Strength Index)
- * @param {Array<number>} prices - Liste des prix (fermeture)
- * @param {number} period - Période du RSI (par défaut 14)
- * @returns {Array<number>} - Liste des valeurs RSI
- */
+// RSI
 function calculateRSI(prices, period = 14) {
   if (prices.length <= period) return [];
-
   const rsiArray = new Array(prices.length).fill(undefined);
   let gains = 0, losses = 0;
 
@@ -43,31 +38,21 @@ function calculateRSI(prices, period = 14) {
 
   let avgGain = gains / period;
   let avgLoss = losses / period;
-
   rsiArray[period] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
 
   for (let i = period + 1; i < prices.length; i++) {
     const diff = prices[i] - prices[i - 1];
     const gain = diff > 0 ? diff : 0;
     const loss = diff < 0 ? -diff : 0;
-
     avgGain = (avgGain * (period - 1) + gain) / period;
     avgLoss = (avgLoss * (period - 1) + loss) / period;
-
     rsiArray[i] = avgLoss === 0 ? 100 : 100 - 100 / (1 + avgGain / avgLoss);
   }
 
   return rsiArray;
 }
 
-/**
- * Calcul du MACD (Moving Average Convergence Divergence)
- * @param {Array<number>} prices - Liste des prix (fermeture)
- * @param {number} fastPeriod - Période EMA rapide (par défaut 12)
- * @param {number} slowPeriod - Période EMA lente (par défaut 26)
- * @param {number} signalPeriod - Période de la ligne signal (par défaut 9)
- * @returns {Object} - { macd: [], signal: [], histogram: [] }
- */
+// MACD
 function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 9) {
   const emaFast = calculateEMA(prices, fastPeriod);
   const emaSlow = calculateEMA(prices, slowPeriod);
@@ -90,11 +75,23 @@ function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 
   return { macd, signal, histogram };
 }
 
-/**
- * Signal d'achat / vente simple basé sur RSI et MACD
- * @param {Array<number>} prices - Liste des prix
- * @returns {string} - 'BUY', 'SELL' ou 'HOLD'
- */
+// GET RSI actuel
+async function getRSI(symbol = 'BTCUSDT', period = 14) {
+  const prices = await getClosingPrices(symbol);
+  const rsiArray = calculateRSI(prices, period);
+  const latestRSI = rsiArray.filter(v => v !== undefined).pop();
+  return latestRSI;
+}
+
+// GET EMA actuel
+async function getEMA(symbol = 'BTCUSDT', period = 9) {
+  const prices = await getClosingPrices(symbol);
+  const emaArray = calculateEMA(prices, period);
+  const latestEMA = emaArray.filter(v => v !== undefined).pop();
+  return latestEMA;
+}
+
+// Signal simplifié
 function getBuySellSignal(prices) {
   const rsiPeriod = 14;
   const rsiArray = calculateRSI(prices, rsiPeriod);
@@ -104,53 +101,16 @@ function getBuySellSignal(prices) {
   const latestMACD = macd[macd.length - 1];
   const latestSignal = signal[signal.length - 1];
 
-  if (
-    latestRSI !== undefined &&
-    latestMACD !== undefined &&
-    latestSignal !== undefined
-  ) {
-    if (latestRSI < 30 && latestMACD > latestSignal) return 'BUY';
-    if (latestRSI > 70 && latestMACD < latestSignal) return 'SELL';
-  }
-
+  if (latestRSI < 30 && latestMACD > latestSignal) return 'BUY';
+  if (latestRSI > 70 && latestMACD < latestSignal) return 'SELL';
   return 'HOLD';
 }
 
-/**
- * Récupère le RSI actuel à partir de l'API Binance
- * @param {string} symbol - Exemple : 'BTCUSDT'
- * @param {number} period - Période RSI
- * @param {string} interval - Intervalle des bougies (ex: '15m', '1h', etc.)
- * @returns {Promise<number>} - RSI actuel
- */
-async function getRSI(symbol, period = 14, interval = '15m') {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${period + 100}`;
-  const response = await axios.get(url);
-  const closes = response.data.map(candle => parseFloat(candle[4]));
-  const rsiArray = calculateRSI(closes, period);
-  return rsiArray[rsiArray.length - 1];
-}
-
-/**
- * Récupère l'EMA actuel à partir de l'API Binance
- * @param {string} symbol - Exemple : 'BTCUSDT'
- * @param {number} period - Période EMA
- * @param {string} interval - Intervalle des bougies
- * @returns {Promise<number>} - EMA actuel
- */
-async function getEMA(symbol, period = 9, interval = '15m') {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${period + 100}`;
-  const response = await axios.get(url);
-  const closes = response.data.map(candle => parseFloat(candle[4]));
-  const emaArray = calculateEMA(closes, period);
-  return emaArray[emaArray.length - 1];
-}
-
 module.exports = {
-  calculateEMA,
-  calculateRSI,
-  calculateMACD,
-  getBuySellSignal,
   getRSI,
   getEMA,
+  calculateRSI,
+  calculateEMA,
+  calculateMACD,
+  getBuySellSignal,
 };
