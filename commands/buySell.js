@@ -5,7 +5,7 @@ module.exports = {
   name: 'buysell',
   description: 'Donne une recommandation BUY / SELL basée sur les indicateurs techniques',
 
-  async execute(ctx) {
+  async execute(bot, chatId) {
     try {
       const symbol = 'BTCUSDT';
       const rsi = await getRSI(symbol, 14);
@@ -19,7 +19,7 @@ module.exports = {
       message += `🔸 EMA 9 : *${emaShort.toFixed(2)}*\n`;
       message += `🔸 EMA 21 : *${emaLong.toFixed(2)}*\n\n`;
 
-      // Logique de signal
+      // Logique du signal
       if (rsi < 30 && emaShort > emaLong) {
         signal = 'BUY';
         emoji = '🟢';
@@ -34,13 +34,13 @@ module.exports = {
         message += `${emoji} *Pas de signal clair pour le moment.*`;
       }
 
-      // Envoyer animation et message
-      await sendBuySellAnimation(ctx, signal);
-      await ctx.replyWithMarkdownV2(message);
+      // Envoyer animation (si disponible) et message
+      await sendBuySellAnimation(bot, chatId, signal);
+      await bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
 
     } catch (error) {
       console.error('Erreur Buy/Sell :', error);
-      await ctx.reply('❌ Erreur lors de la génération du signal BUY/SELL.');
+      await bot.sendMessage(chatId, '❌ Erreur lors de la génération du signal BUY/SELL.');
     }
   }
 };
