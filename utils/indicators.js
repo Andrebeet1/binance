@@ -29,12 +29,7 @@ async function getClosingPrices(symbol = 'BTCUSDT', interval = '1h', limit = 100
 // EMA
 function calculateEMA(prices, period) {
   if (!Array.isArray(prices) || prices.length < period) return [];
-  const k = 2 / (period + 1);
-  const emaArray = new Array(prices.length).fill(undefined);
-  let ema = prices.slice(0, period).reduce((a, b) => a + b, 0) / period;
-  emaArray[period - 1] = ema;
-
-  for (let i = period; i < prices.length; i++) {
+  const k < prices.length; i++) {
     ema = prices[i] * k + ema * (1 - k);
     emaArray[i] = ema;
   }
@@ -75,8 +70,7 @@ function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 
       ? emaFast[i] - emaSlow[i]
       : undefined
   );
-  const validMACD = macd.filter(v => v !== undefined);
-  const signal = calculateEMA(validMACD, signalPeriod);
+ D, signalPeriod);
   const histogram = macd.map((value, i) =>
     value !== undefined && signal[i] !== undefined
       ? value - signal[i]
@@ -85,22 +79,29 @@ function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 
   return { macd, signal, histogram };
 }
 
-// Obtenir le dernier RSI avec gestion d'erreur
-async function getRSI(symbol = 'BTCUSDT', period = 14, interval = '1h', limit = 100) {
+// Obtenir le dernier RSI avec gestion automatique du limit
+async function getRSI(symbol = 'BTCUSDT', period = 14, interval = '1h', limit) {
+  // On s'assure de prendre assez de valeurs pour un RSI fiable
+  const minLimit = period + 20; // +20 pour la stabilité du calcul
+  limit = (limit === undefined || limit < minLimit) ? minLimit : limit;
   const prices = await getClosingPrices(symbol, interval, limit);
   if (!prices || prices.length <= period) {
-    throw new Error('Pas assez de données pour calculer le RSI');
+    console.error(`[getRSI] Données insuffisantes : récupéré ${prices.length}, requis > ${period}`);
+    return null;
   }
   const rsiArray = calculateRSI(prices, period);
   const latestRSI = rsiArray.filter(v => v !== undefined).pop();
   return latestRSI;
 }
 
-// Obtenir le dernier EMA avec gestion d'erreur
-async function getEMA(symbol = 'BTCUSDT', period = 9, interval = '1h', limit = 100) {
+// Obtenir le dernier EMA avec gestion automatique du limit
+async function getEMA(symbol = 'BTCUSDT', period = 9, interval = '1h', limit) {
+  const minLimit = period + 10; // +10 pour la stabilité du calcul
+  limit = (limit === undefined || limit < minLimit) ? minLimit : limit;
   const prices = await getClosingPrices(symbol, interval, limit);
   if (!prices || prices.length <= period) {
-    throw new Error('Pas assez de données pour calculer l\'EMA');
+    console.error(`[getEMA] Données insuffisantes : récupéré ${prices.length}, requis > ${period}`);
+    return null;
   }
   const emaArray = calculateEMA(prices, period);
   const latestEMA = emaArray.filter(v => v !== undefined).pop();
