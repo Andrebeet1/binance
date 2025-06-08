@@ -1,8 +1,7 @@
 // utils/telegramHelpers.js
-const fs = require('fs');
 
 /**
- * Génère le clavier inline pour les signaux (RSI, Acheter, Vendre, Aide)
+ * Crée le clavier inline pour des actions ponctuelles (ex : signaux)
  */
 function createSignalKeyboard() {
   return {
@@ -22,7 +21,7 @@ function createSignalKeyboard() {
 }
 
 /**
- * Génère le clavier principal classique (sous le champ de texte)
+ * Crée le clavier principal classique, affiché en permanence sous le champ de texte
  */
 function getMainKeyboard() {
   return {
@@ -32,17 +31,17 @@ function getMainKeyboard() {
         [{ text: '📘 Aide' }]
       ],
       resize_keyboard: true,
-      one_time_keyboard: false // Le clavier reste affiché
+      one_time_keyboard: false // Le menu ne disparait jamais
     }
   };
 }
 
-// Historique temporaire des messages à supprimer
+// Historique temporaire des messages à supprimer (hors menu principal)
 const messageHistory = new Map();
-const MESSAGE_HISTORY_LIMIT = 10; // Peut être ajusté
+const HISTORY_LIMIT = 10;
 
 /**
- * Enregistre un message à supprimer plus tard
+ * Enregistre un message à supprimer plus tard (sauf menu principal)
  * @param {number} chatId 
  * @param {number} messageId 
  */
@@ -52,15 +51,13 @@ function trackMessage(chatId, messageId) {
   }
   const history = messageHistory.get(chatId);
   history.push(messageId);
-  // Limite l’historique à MESSAGE_HISTORY_LIMIT messages par chat
-  if (history.length > MESSAGE_HISTORY_LIMIT) {
-    messageHistory.set(chatId, history.slice(-MESSAGE_HISTORY_LIMIT));
+  if (history.length > HISTORY_LIMIT) {
+    messageHistory.set(chatId, history.slice(-HISTORY_LIMIT));
   }
 }
 
 /**
- * Supprime tous les messages enregistrés pour ce chat
- * puis vide l’historique
+ * Supprime tous les messages enregistrés pour ce chat (sauf menu principal)
  * @param {TelegramBot} bot 
  * @param {number} chatId 
  */
@@ -71,7 +68,6 @@ async function deleteLastMessages(bot, chatId) {
     try {
       await bot.deleteMessage(chatId, messageId);
     } catch (err) {
-      // Ignore si le message n’existe plus, loggue le reste
       if (!err.message.includes('message to delete not found')) {
         console.warn(`⚠️ Erreur suppression message : ${err.message}`);
       }
@@ -81,17 +77,16 @@ async function deleteLastMessages(bot, chatId) {
 }
 
 /**
- * Supprime l’historique et affiche un nouveau message avec clavier
+ * Réinitialise l’interface utilisateur : supprime messages temporaires,
+ * puis affiche le menu principal (onglets fixes)
  * @param {TelegramBot} bot 
  * @param {number} chatId 
- * @param {string} text 
- * @returns {Promise}
+ * @param {string} [text] Texte d’accueil ou de contexte (optionnel)
  */
-async function resetAndSendMainKeyboard(bot, chatId, text) {
+async function resetUserInterface(bot, chatId, text = "Menu principal") {
   await deleteLastMessages(bot, chatId);
-  const sent = await bot.sendMessage(chatId, text, getMainKeyboard());
-  trackMessage(chatId, sent.message_id);
-  return sent;
+  // Affiche le menu principal (NE PAS tracker ce message !)
+  await bot.sendMessage(chatId, text, getMainKeyboard());
 }
 
 module.exports = {
@@ -99,5 +94,5 @@ module.exports = {
   getMainKeyboard,
   trackMessage,
   deleteLastMessages,
-  resetAndSendMainKeyboard // Nouvelle fonction pratique
+  resetUserInterface
 };
