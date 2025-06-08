@@ -29,7 +29,7 @@ async function getClosingPrices(symbol = 'BTCUSDT', interval = '1h', limit = 100
 // EMA
 function calculateEMA(prices, period) {
   if (!Array.isArray(prices) || prices.length < period) return [];
-  const k < prices.length; i++) {
+  const k = (let i = period; i < prices.length; i++) {
     ema = prices[i] * k + ema * (1 - k);
     emaArray[i] = ema;
   }
@@ -70,7 +70,8 @@ function calculateMACD(prices, fastPeriod = 12, slowPeriod = 26, signalPeriod = 
       ? emaFast[i] - emaSlow[i]
       : undefined
   );
- D, signalPeriod);
+  const validMACD = macd.filter(v => v !== undefined);
+  const signal = calculateEMA(validMACD, signalPeriod);
   const histogram = macd.map((value, i) =>
     value !== undefined && signal[i] !== undefined
       ? value - signal[i]
@@ -85,8 +86,7 @@ async function getRSI(symbol = 'BTCUSDT', period = 14, interval = '1h', limit) {
   const minLimit = period + 20; // +20 pour la stabilité du calcul
   limit = (limit === undefined || limit < minLimit) ? minLimit : limit;
   const prices = await getClosingPrices(symbol, interval, limit);
-  if (!prices || prices.length <= period) {
-    console.error(`[getRSI] Données insuffisantes : récupéré ${prices.length}, requis > ${period}`);
+  if Données insuffisantes : récupéré ${prices.length}, requis > ${period}`);
     return null;
   }
   const rsiArray = calculateRSI(prices, period);
@@ -112,35 +112,7 @@ async function getEMA(symbol = 'BTCUSDT', period = 9, interval = '1h', limit) {
 function getSmartSignal(prices) {
   const rsiPeriod = 14;
   const emaPeriod = 20;
-  const rsiArray = calculateRSI(prices, rsiPeriod);
-  const emaArray = calculateEMA(prices, emaPeriod);
-  const { macd, signal } = calculateMACD(prices);
-
-  const latestRSI = rsiArray.filter(v => v !== undefined).pop();
-  const latestEMA = emaArray.filter(v => v !== undefined).pop();
-  const lastPrice = prices[prices.length - 1];
-  const latestMACD = macd.filter(v => v !== undefined).pop();
-  const latestSignal = signal.filter(v => v !== undefined).pop();
-
-  let decision = 'HOLD', confidence = 0.5, reason = 'Pas de signal clair';
-
-  if (latestRSI !== undefined && latestEMA !== undefined && latestMACD !== undefined && latestSignal !== undefined) {
-    if (lastPrice > latestEMA && latestRSI < 30 && latestMACD > latestSignal) {
-      decision = 'BUY';
-      confidence = 0.9;
-      reason = 'Tendance haussière, RSI bas, MACD haussier';
-    } else if (lastPrice < latestEMA && latestRSI > 70 && latestMACD < latestSignal) {
-      decision = 'SELL';
-      confidence = 0.9;
-      reason = 'Tendance baissière, RSI haut, MACD baissier';
-    }
-  }
-  return { signal: decision, confidence, reason };
-}
-
-module.exports = {
-  getClosingPrices,
-  calculateEMA,
+  const rsiArray = calculateRSI(prices, rsi EMA,
   calculateRSI,
   calculateMACD,
   getRSI,
